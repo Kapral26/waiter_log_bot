@@ -1,0 +1,31 @@
+version: "3"
+services:
+  db:
+    container_name: postgres_container
+    image: postgres:16-alpine
+    env_file:
+      - ./config/.env
+    volumes:
+      - ./data:/var/lib/postgresql/data
+      - .:/docker-entrypoint-initdb.d
+    restart: on-failure
+    ports:
+      - "5432:5432"
+    networks:
+      - db
+
+  tg_bot:
+    container_name: bot_container
+    build: .
+    env_file:
+      - ./config/.env
+    command: sh -c "alembic upgrade head && python3 ./main.py"
+    restart: on-failure
+    depends_on:
+      - db
+    networks:
+      - db
+
+networks:
+  db:
+    driver: bridge
