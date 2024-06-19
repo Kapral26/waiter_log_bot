@@ -14,17 +14,17 @@ services:
     networks:
       - db
 
-  tg_bot:
-    container_name: bot_container
-    build: .
-    env_file:
-      - ./config/.env
-    command: sh -c "alembic upgrade head && python3 ./main.py"
-    restart: on-failure
-    depends_on:
-      - db
-    networks:
-      - db
+#  tg_bot:
+#    container_name: bot_container
+#    build: .
+#    env_file:
+#      - ./config/.env
+#    command: sh -c "alembic upgrade head && python3 ./main.py"
+#    restart: on-failure
+#    depends_on:
+#      - db
+#    networks:
+#      - db
 
 networks:
   db:

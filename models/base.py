@@ -1,14 +1,16 @@
 from sqlalchemy import URL
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncEngine
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncEngine, AsyncSession
 
 from config.config_reader import Settings
-from models import Base, Users, Groups, FoundErrors
+from models.models import Base, Users, Restaurant, Dish, DishOrders, Events
 
 __all__ = [
     "Base",
     "Users",
-    "Groups",
-    "FoundErrors"
+    "Restaurant",
+    "Dish",
+    "DishOrders",
+    "Events"
 ]
 
 SETTINGS = Settings()
@@ -61,4 +63,3 @@ async def create_engine_async() -> AsyncEngine:
     )
 
     return engine_async
-

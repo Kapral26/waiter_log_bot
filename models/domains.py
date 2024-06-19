@@ -10,7 +10,7 @@ from sqlalchemy.orm import mapped_column
 # В дальнейшем их можно будет указывать в качестве типа при маппинге поля.
 # Так же я могу сравнить это с доменами в Firebird.
 intpk = Annotated[int, mapped_column(primary_key=True)]
-intpk_fk = Annotated[int, mapped_column(autoincrement=False, primary_key=True, unique=True)]
+intpk_fk = Annotated[int, mapped_column(autoincrement=False)]
 bigint = Annotated[int, mapped_column(BigInteger, autoincrement=False, primary_key=True, unique=True)]
 
 created_at = Annotated[
