@@ -2,15 +2,11 @@
 
 import asyncio
 
-from aiogram import Bot, Dispatcher, types, html, F
-from aiogram.enums import ParseMode
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command
-from aiogram.utils.formatting import as_list, as_marked_section, Bold, Text
+from aiogram.utils.formatting import as_list, Bold, Text
+
 from config.config_reader import Settings
-from utils.basic_msg import error_msg
-from utils.db.core import insert_user, get_all_users, check_registry_user, collect_errors, get_statistics
-from utils.log import logger
-from utils.ya_spell import use_yandexspeller
 
 settings = Settings()
 
@@ -27,10 +23,7 @@ async def send_menu(message: types.Message) -> None:
     msg = as_list(
             Bold("Список команд:"),
             "/start - Запустить бота",
-            "/registry - Регистрация пользователя",
             "/help - Помощь, собственно увидеть это сообщение",
-            "/users - Показать список всех пользователей",
-            "/statistics - Показать статистику"
     )
     await message.reply(
             **msg.as_kwargs(),
@@ -48,134 +41,70 @@ async def send_welcome(message: types.Message) -> None:
     )
     await message.reply(**msg.as_kwargs())
 
-    if message.chat.type == "private":
-        await registry_user(message)
     # Показать список команд
     await send_menu(message=message)
 
 
-@dp.message(Command("registry"))
-async def registry_user(message: types.Message) -> None:
-    """Регистрация пользователя."""
-    user_is_registry = await check_registry_user(
-            user_id=message.from_user.id,
-            group_chat_id=message.chat.id
-    )
-
-    if user_is_registry:
-        await message.reply(
-                "Ты уже зарегистрирован!",
-                reply=False
-        )
-        return
-
-    await insert_user(
-            message.from_user.id,
-            message.from_user.username,
-            message.from_user.first_name,
-            message.from_user.last_name,
-            message.chat
-    )
-
-    await message.reply(
-            f"""
-            Пользователь: {html.bold(message.from_user.first_name)} Зарегистрирован
-            """.strip(),
-            parse_mode=ParseMode.HTML
-
-    )
-
-
-@dp.message(Command("users"))
-async def users(message: types.Message) -> None:
-    """Показать список пользователей"""
-    all_users = await get_all_users(message.chat.id)
-
-    formatted_users = [
-        Text(
-                Bold("\nusername: "), f"{user.username}\n",
-                Bold("first_name: "), f"{user.first_name}\n",
-                Bold("last_name: "), f"{user.last_name}\n",
-                "-------\n"
-        ) for user in all_users
+@dp.message(Command("regular_button"))
+async def regular_button(message: types.Message):
+    kb = [
+        [types.KeyboardButton(text="С пюрешкой")],
+        [types.KeyboardButton(text="Без пюрешки")]
     ]
-
-    msg = as_list(
-            as_marked_section(
-                    Bold("Список пользователей:\n"),
-                    *formatted_users,
-                    marker="👤",
-            )
+    keyboard = types.ReplyKeyboardMarkup(
+            keyboard=kb,
+            resize_keyboard=True,  # Уменьшить размер кнопок
+            input_field_placeholder="Выберите способ подачи"  # Текст, который будет указан в поле ввода
+    )
+    await message.answer(
+            "Как подавать котлеты?",
+            reply_markup=keyboard
     )
 
-    await message.reply(**msg.as_kwargs())
 
-
-@dp.message(Command("statistics"))
-async def statistics(message: types.Message) -> None:
-    """Показать список пользователей"""
-    user_statistics = await get_statistics(message.chat.id)
-
-    users_errors = [
-        Text(
-                Bold(f"{user[0]} : "),
-                f"{user[1]} ошибки(ок)"
-        ) for user in user_statistics
-    ]
-    msg = as_list(
-            as_marked_section(
-                    Bold("Статистика пользователей:\n"),
-                    *users_errors,
-                    marker="▪️",
-            )
-    )
-
+@dp.message(F.text.lower() == "с пюрешкой")
+async def with_puree(message: types.Message):
     await message.reply(
-            **msg.as_kwargs(),
+            "Отличный выбор!",
+            reply_markup=types.ReplyKeyboardRemove()
     )
 
 
-@dp.message(F.text)
-async def cmd_spell(message: types.Message) -> None:
-    """Проверяет правописание текста и заменяет все проблемные слова на корректные."""
-    correct_text = message.text
-
-    user_registry = await check_registry_user(
-            user_id=message.from_user.id,
-            group_chat_id=message.chat.id,
+@dp.message(F.text.lower() == "без пюрешки")
+async def without_puree(message: types.Message):
+    await message.reply(
+            "Так невкусно!",
+            reply_markup=types.ReplyKeyboardRemove()
     )
 
-    if not user_registry:
-        # Собираем статистику только если пользователь зарегистрирован
-        return
+# новый импорт
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-    try:
-        result = await use_yandexspeller(correct_text)
-    except Exception as error:
-        logger.exception(error)
-        await message.reply(**error_msg())
-        raise
+@dp.message(Command("inline_url"))
+async def cmd_inline_url(message: types.Message, bot: Bot):
+    builder = InlineKeyboardBuilder()
+    builder.row(types.InlineKeyboardButton(
+        text="GitHub", url="https://github.com")
+    )
+    builder.row(types.InlineKeyboardButton(
+        text="Оф. канал Telegram",
+        url="tg://resolve?domain=telegram")
+    )
 
-    for bad_w, corr_w in result:
-        await collect_errors(
-                message.from_user.id,
-                message.chat.id,
-                bad_w,
-                corr_w
-        )
+    # Чтобы иметь возможность показать ID-кнопку,
+    # У юзера должен быть False флаг has_private_forwards
+    # user_id = 1234567890
+    # chat_info = await bot.get_chat(user_id)
+    # if not chat_info.has_private_forwards:
+    #     builder.row(types.InlineKeyboardButton(
+    #         text="Какой-то пользователь",
+    #         url=f"tg://user?id={user_id}")
+    #     )
 
-        if message.chat.type == "private":
-            correct_text = correct_text.replace(
-                    bad_w,
-                    corr_w
-            )
-
-    if message.chat.type == "private":
-        await message.answer(
-                text=correct_text,
-                parse_mode=ParseMode.HTML
-        )
-
+    await message.answer(
+        'Выберите ссылку',
+        reply_markup=builder.as_markup(),
+    )
 
 async def main() -> None:
     """Основной метод запуска бота."""
